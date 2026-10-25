@@ -35,6 +35,14 @@ class RequestEntitySuite extends CatsEffectSuite {
     Request
       .get(Path.root)
       .withEntityAndExtractHeader[`Content-Type`](Entity.text)
+  val entityPathRequest =
+    Request
+      .get(Path.root / Param.int)
+      .withEntity(Entity.text)
+  val headerEntityPathRequest =
+    Request
+      .get(Path.root / Param.int)
+      .withEntityAndExtractHeader[`Content-Type`](Entity.text)
 
   test("Unit request parses empty entity") {
     val request =
@@ -128,6 +136,78 @@ class RequestEntitySuite extends CatsEffectSuite {
 
     assertEquals(unparsed.method, request.method)
     assertEquals(unparsed.uri.path, request.uri.path)
+    assertEquals(unparsed.headers, request.headers)
+    assertEquals(unparsed.entity, request.entity)
+  }
+
+  test("Text request with header parses path param and entity") {
+    val request =
+      Http4sRequest(
+        method = Method.GET,
+        uri = uri"http://example.org/42",
+        entity = Http4sEntity.utf8String("hello")
+      )
+
+    entityPathRequest
+      .parse(request)(using Raise.toOption)
+      .map {
+        case Some((int, "hello")) =>
+          assertEquals(int, 42)
+        case other => fail(s"Not the expected entity: $other")
+      }
+  }
+
+  test("Text request with header unparses path param and entity") {
+    val request =
+      Http4sRequest(
+        method = Method.GET,
+        uri = uri"http://example.org/42",
+        entity = Http4sEntity.utf8String("hello")
+      )
+
+    val unparsed =
+      entityPathRequest.unparse((42, "hello"))
+
+    assertEquals(unparsed.method, request.method)
+    assertEquals(unparsed.uri.path, request.uri.path)
+    assertEquals(unparsed.uri.path.renderString, "/42")
+    assertEquals(unparsed.entity, request.entity)
+  }
+
+  test("Text request with header parses path param, header, and entity") {
+    val request =
+      Http4sRequest(
+        method = Method.GET,
+        uri = uri"http://example.org/42",
+        headers = Headers(jsonContentType),
+        entity = Http4sEntity.utf8String("hello")
+      )
+
+    headerEntityPathRequest
+      .parse(request)(using Raise.toOption)
+      .map {
+        case Some(Tuple3(int, header, "hello")) =>
+          assertEquals(int, 42)
+          assertEquals(header, jsonContentType)
+        case other => fail(s"Not the expected entity: $other")
+      }
+  }
+
+  test("Text request with header unparses path param, header, and entity") {
+    val request =
+      Http4sRequest(
+        method = Method.GET,
+        uri = uri"http://example.org/42",
+        headers = Headers(jsonContentType),
+        entity = Http4sEntity.utf8String("hello")
+      )
+
+    val unparsed =
+      headerEntityPathRequest.unparse((42, jsonContentType, "hello"))
+
+    assertEquals(unparsed.method, request.method)
+    assertEquals(unparsed.uri.path, request.uri.path)
+    assertEquals(unparsed.uri.path.renderString, "/42")
     assertEquals(unparsed.headers, request.headers)
     assertEquals(unparsed.entity, request.entity)
   }

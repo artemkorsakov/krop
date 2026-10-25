@@ -108,7 +108,7 @@ Here is an example that extracts the `Content-Type` header and attaches a text e
 
 ```scala mdoc:silent
 Request
-  .get(Path.root)
+  .get(Path.root / Param.int)
   .withEntityAndExtractHeader[`Content-Type`](Entity.text)
 ```
 

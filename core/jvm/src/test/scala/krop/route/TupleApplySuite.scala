@@ -31,6 +31,14 @@ class TupleApplySuite extends FunSuite {
     Request
       .get(Path.root)
       .withEntityAndExtractHeader[`Content-Type`](Entity.text)
+  val entityPathRequest =
+    Request
+      .get(Path.root / Param.int)
+      .withEntity(Entity.text)
+  val headerEntityPathRequest =
+    Request
+      .get(Path.root / Param.int)
+      .withEntityAndExtractHeader[`Content-Type`](Entity.text)
 
   test("Type inference works for EmptyTuple") {
     val route = Route(emptyRequest, Response.ok(Entity.text))
@@ -70,5 +78,19 @@ class TupleApplySuite extends FunSuite {
 
     route.handle((header, body) => s"$header: $body")
     route.handleIO((header, body) => IO.pure(s"$header: $body"))
+  }
+
+  test("Type inference works for extracted path and entity") {
+    val route = Route(entityPathRequest, Response.ok(Entity.text))
+
+    route.handle((int, body) => s"$int: $body")
+    route.handleIO((int, body) => IO.pure(s"$int: $body"))
+  }
+
+  test("Type inference works for extracted path, header and entity") {
+    val route = Route(headerEntityPathRequest, Response.ok(Entity.text))
+
+    route.handle((int, header, body) => s"$int: $header: $body")
+    route.handleIO((int, header, body) => IO.pure(s"$int: $header: $body"))
   }
 }
