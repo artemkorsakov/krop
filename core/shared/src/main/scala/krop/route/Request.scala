@@ -247,6 +247,16 @@ object Request {
       val headers = RequestHeaders.empty(this)
       RequestEntity(headers, entity)
     }
+
+    def withEntityAndExtractHeader[A](using
+        h: Header[A, ?],
+        s: Header.Select[A]
+    )[E, D](
+        entity: Entity[E, D]
+    ): RequestEntity[P, Q, Tuple1[s.F[A]], Tuple1[s.F[A]], E, D] = {
+      val headers = extractHeader[A]
+      RequestEntity(headers, entity)
+    }
   }
 
   // I is the type when this Request is viewed as an input. In other words, it's

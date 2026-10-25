@@ -19,14 +19,22 @@ package krop.route
 import krop.raise.Raise
 import munit.CatsEffectSuite
 import org.http4s.Entity as Http4sEntity
+import org.http4s.Headers
+import org.http4s.MediaType
 import org.http4s.Method
 import org.http4s.Request as Http4sRequest
 import org.http4s.Uri
+import org.http4s.headers.`Content-Type`
 import org.http4s.implicits.*
 
 class RequestEntitySuite extends CatsEffectSuite {
+  val jsonContentType = `Content-Type`(MediaType.application.json)
   val unitRequest = Request.get(Path.root).withEntity(Entity.unit)
   val textRequest = Request.get(Path.root).withEntity(Entity.text)
+  val headerEntityRequest =
+    Request
+      .get(Path.root)
+      .withEntityAndExtractHeader[`Content-Type`](Entity.text)
 
   test("Unit request parses empty entity") {
     val request =
@@ -82,6 +90,41 @@ class RequestEntitySuite extends CatsEffectSuite {
       )
 
     val unparsed = textRequest.unparse(Tuple1("hello"))
+
+    assertEquals(unparsed.method, request.method)
+    assertEquals(unparsed.uri.path, request.uri.path)
+    assertEquals(unparsed.headers, request.headers)
+    assertEquals(unparsed.entity, request.entity)
+  }
+
+  test("Text request with header parses header and text") {
+    val request =
+      Http4sRequest(
+        method = Method.GET,
+        uri = uri"http://example.org/",
+        headers = Headers(jsonContentType),
+        entity = Http4sEntity.utf8String("hello")
+      )
+
+    headerEntityRequest
+      .parse(request)(using Raise.toOption)
+      .map {
+        case Some(Tuple2(header, "hello")) =>
+          assertEquals(header, jsonContentType)
+        case other => fail(s"Not the expected entity: $other")
+      }
+  }
+
+  test("Text request with header unparses header and text") {
+    val request =
+      Http4sRequest(
+        method = Method.GET,
+        uri = uri"http://example.org/",
+        headers = Headers(jsonContentType),
+        entity = Http4sEntity.utf8String("hello")
+      )
+
+    val unparsed = headerEntityRequest.unparse(Tuple2(jsonContentType, "hello"))
 
     assertEquals(unparsed.method, request.method)
     assertEquals(unparsed.uri.path, request.uri.path)
